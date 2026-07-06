@@ -36,12 +36,22 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
 
     @app.post("/api/pipeline/run")
     def run_pipeline(trade_date: str, limit: int = 200) -> dict[str, object]:
+        client = TushareClient()
         try:
-            bars = TushareClient().fetch_daily_bars(trade_date=trade_date, limit=limit)
+            bars = client.fetch_daily_bars(trade_date=trade_date, limit=limit)
         except RuntimeError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-        signals = generate_signals(bars)
+        history_by_code = {
+            bar.ts_code: client.fetch_recent_bars(
+                ts_code=bar.ts_code,
+                end_date=trade_date,
+                limit=30,
+            )
+            or [bar]
+            for bar in bars
+        }
+        signals = generate_signals(bars, history_by_code=history_by_code)
         repository.save_latest(signals, source="tushare")
         return {
             "source": "tushare",

@@ -16,6 +16,10 @@ def test_latest_signals_returns_sample_payload_when_store_is_empty(tmp_path):
     assert {"ts_code", "name", "rating", "action", "score"}.issubset(
         payload["signals"][0].keys()
     )
+    signal = payload["signals"][0]
+    assert len(signal["bars"]) >= 5
+    assert signal["indicators"] == ["涨跌幅", "日内振幅", "动量评分", "建议仓位"]
+    assert any("\u4e00" <= char <= "\u9fff" for char in signal["reason"])
 
 
 def test_health_endpoint_reports_service_name(tmp_path):

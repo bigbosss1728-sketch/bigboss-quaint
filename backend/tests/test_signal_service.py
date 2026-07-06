@@ -35,6 +35,8 @@ def test_generate_signals_ranks_positive_momentum_above_weak_stock():
     assert [item.ts_code for item in signals] == ["000001.SZ", "000002.SZ"]
     assert signals[0].rating == SignalRating.A
     assert signals[0].action == "buy"
+    assert signals[0].indicators == ["涨跌幅", "日内振幅", "动量评分", "建议仓位"]
+    assert "动量" in signals[0].reason
     assert signals[1].rating == SignalRating.D
     assert signals[1].action == "avoid"
 
@@ -59,3 +61,36 @@ def test_generate_signals_limits_position_for_extreme_daily_move():
     assert signal.rating == SignalRating.B
     assert signal.action == "watch"
     assert signal.suggested_weight == 0.0
+
+
+def test_generate_signals_attaches_multi_day_history():
+    older = DailyBar(
+        ts_code="000001.SZ",
+        name="Ping An Bank",
+        trade_date="20260702",
+        open=9.8,
+        high=10.1,
+        low=9.7,
+        close=10.0,
+        pre_close=9.8,
+        pct_chg=2.04,
+        vol=800000.0,
+        amount=1000000.0,
+    )
+    latest = DailyBar(
+        ts_code="000001.SZ",
+        name="Ping An Bank",
+        trade_date="20260703",
+        open=10.0,
+        high=11.2,
+        low=9.9,
+        close=11.0,
+        pre_close=10.0,
+        pct_chg=10.0,
+        vol=900000.0,
+        amount=1200000.0,
+    )
+
+    signal = generate_signals([latest], history_by_code={"000001.SZ": [older, latest]})[0]
+
+    assert signal.bars == [older, latest]

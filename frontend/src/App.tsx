@@ -1,9 +1,22 @@
 import { PlayCircleOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Col, ConfigProvider, Flex, Row, Space, Table, Tag, Typography } from "antd";
-import type { ColumnsType } from "antd/es/table";
-import { useEffect, useMemo, useState } from "react";
+import { Alert, Button, Card, Col, ConfigProvider, Flex, Row, Space, Tag, Typography } from "antd";
+import { useEffect, useState } from "react";
 
 type Rating = "A" | "B" | "C" | "D";
+
+type DailyBar = {
+  ts_code: string;
+  name: string;
+  trade_date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  pre_close: number;
+  pct_chg: number;
+  vol: number;
+  amount: number;
+};
 
 type StockSignal = {
   ts_code: string;
@@ -14,6 +27,8 @@ type StockSignal = {
   score: number;
   suggested_weight: number;
   reason: string;
+  bars: DailyBar[];
+  indicators: string[];
 };
 
 type LatestSignalResponse = {
@@ -29,6 +44,57 @@ const ratingColors: Record<Rating, string> = {
   C: "default",
   D: "red",
 };
+
+const actionLabels: Record<string, string> = {
+  buy: "买入观察",
+  watch: "继续观察",
+  hold: "持有",
+  avoid: "回避",
+};
+
+function CandlestickChart({ bars }: { bars: DailyBar[] }) {
+  const visibleBars = bars.slice(-30);
+  if (visibleBars.length === 0) {
+    return <div className="chart-empty">暂无K线数据</div>;
+  }
+
+  const width = 320;
+  const height = 140;
+  const padding = 12;
+  const chartHeight = height - padding * 2;
+  const lows = visibleBars.map((bar) => bar.low);
+  const highs = visibleBars.map((bar) => bar.high);
+  const min = Math.min(...lows);
+  const max = Math.max(...highs);
+  const spread = max - min || 1;
+  const step = width / visibleBars.length;
+  const candleWidth = Math.max(4, Math.min(10, step * 0.48));
+  const yFor = (value: number) => padding + ((max - value) / spread) * chartHeight;
+
+  return (
+    <svg className="kline-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="多日K线图">
+      <line className="chart-axis" x1={0} x2={width} y1={height - padding} y2={height - padding} />
+      {visibleBars.map((bar, index) => {
+        const x = step * index + step / 2;
+        const openY = yFor(bar.open);
+        const closeY = yFor(bar.close);
+        const isUp = bar.close >= bar.open;
+        return (
+          <g key={`${bar.trade_date}-${index}`} className={isUp ? "candle-up" : "candle-down"}>
+            <line x1={x} x2={x} y1={yFor(bar.high)} y2={yFor(bar.low)} />
+            <rect
+              x={x - candleWidth / 2}
+              y={Math.min(openY, closeY)}
+              width={candleWidth}
+              height={Math.max(2, Math.abs(closeY - openY))}
+              rx={1}
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 function App() {
   const [payload, setPayload] = useState<LatestSignalResponse | null>(null);
@@ -79,50 +145,6 @@ function App() {
   const buyCount = signals.filter((item) => item.action === "buy").length;
   const watchCount = signals.filter((item) => item.action === "watch").length;
   const topTradeDate = signals[0]?.trade_date ?? "-";
-
-  const columns = useMemo<ColumnsType<StockSignal>>(
-    () => [
-      {
-        title: "Code",
-        dataIndex: "ts_code",
-        width: 120,
-        fixed: "left",
-      },
-      {
-        title: "Name",
-        dataIndex: "name",
-        width: 140,
-      },
-      {
-        title: "Rating",
-        dataIndex: "rating",
-        width: 100,
-        render: (rating: Rating) => <Tag color={ratingColors[rating]}>{rating}</Tag>,
-      },
-      {
-        title: "Action",
-        dataIndex: "action",
-        width: 110,
-      },
-      {
-        title: "Score",
-        dataIndex: "score",
-        width: 100,
-        sorter: (a, b) => a.score - b.score,
-      },
-      {
-        title: "Weight",
-        dataIndex: "suggested_weight",
-        width: 110,
-        render: (value: number) => `${(value * 100).toFixed(1)}%`,
-      },
-      {
-        title: "Reason",
-        dataIndex: "reason",
-      },
-    ],
-    [],
-  );
 
   return (
     <ConfigProvider
@@ -186,17 +208,51 @@ function App() {
             </Col>
           </Row>
 
-          <Card size="small" title="Daily Stock Pool">
-            <Table
-              rowKey="ts_code"
-              columns={columns}
-              dataSource={signals}
-              loading={!payload && !error}
-              pagination={{ pageSize: 20, showSizeChanger: false }}
-              scroll={{ x: 900 }}
-              size="middle"
-            />
-          </Card>
+          <section className="stock-section">
+            <div className="section-heading">
+              <Typography.Title level={4}>选股池</Typography.Title>
+              <Typography.Text type="secondary">每只股票展示多日K线、选股原因和技术指标</Typography.Text>
+            </div>
+            {!payload && !error ? <Card loading /> : null}
+            <div className="stock-grid">
+              {signals.map((signal) => (
+                <Card
+                  key={signal.ts_code}
+                  size="small"
+                  className="stock-card"
+                  title={
+                    <div className="stock-title">
+                      <span>{signal.name || signal.ts_code}</span>
+                      <Typography.Text type="secondary">{signal.ts_code}</Typography.Text>
+                    </div>
+                  }
+                  extra={<Tag color={ratingColors[signal.rating]}>{signal.rating}</Tag>}
+                >
+                  <div className="stock-summary">
+                    <div>
+                      <span className="stock-label">操作</span>
+                      <strong>{actionLabels[signal.action] ?? signal.action}</strong>
+                    </div>
+                    <div>
+                      <span className="stock-label">评分</span>
+                      <strong>{signal.score.toFixed(2)}</strong>
+                    </div>
+                    <div>
+                      <span className="stock-label">建议仓位</span>
+                      <strong>{(signal.suggested_weight * 100).toFixed(1)}%</strong>
+                    </div>
+                  </div>
+                  <CandlestickChart bars={signal.bars} />
+                  <p className="stock-reason">{signal.reason}</p>
+                  <div className="indicator-list">
+                    {signal.indicators.map((indicator) => (
+                      <Tag key={indicator}>{indicator}</Tag>
+                    ))}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </section>
         </Space>
       </main>
     </ConfigProvider>

@@ -31,6 +31,22 @@ class TushareClient:
         data = daily.merge(names, on="ts_code", how="left").head(limit)
         return [_daily_bar_from_row(row) for _, row in data.iterrows()]
 
+    def fetch_recent_bars(
+        self,
+        ts_code: str,
+        end_date: str,
+        limit: int = 30,
+    ) -> list[DailyBar]:
+        if not self._token:
+            raise RuntimeError("TUSHARE_TOKEN is required to fetch market data.")
+
+        import tushare as ts
+
+        pro = ts.pro_api(self._token)
+        daily = pro.daily(ts_code=ts_code, end_date=end_date)
+        data = daily.sort_values("trade_date").tail(limit)
+        return [_daily_bar_from_row(row) for _, row in data.iterrows()]
+
 
 def _daily_bar_from_row(row: pd.Series) -> DailyBar:
     return DailyBar(

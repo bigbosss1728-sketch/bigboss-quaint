@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from backend.app.domain import StockSignal
+from backend.app.domain import DailyBar, StockSignal
 
 
 class JsonSignalRepository:
@@ -27,36 +27,56 @@ class JsonSignalRepository:
 
 
 def sample_signals() -> list[StockSignal]:
-    from backend.app.domain import DailyBar
     from backend.app.signal_service import generate_signals
 
-    return generate_signals(
-        [
-            DailyBar(
-                ts_code="000001.SZ",
-                name="Ping An Bank",
-                trade_date="20260703",
-                open=10.0,
-                high=11.0,
-                low=9.8,
-                close=10.8,
-                pre_close=10.0,
-                pct_chg=8.0,
-                vol=900000.0,
-                amount=1200000.0,
-            ),
-            DailyBar(
-                ts_code="600000.SH",
-                name="SPD Bank",
-                trade_date="20260703",
-                open=8.0,
-                high=8.2,
-                low=7.9,
-                close=8.1,
-                pre_close=8.0,
-                pct_chg=1.25,
-                vol=700000.0,
-                amount=800000.0,
-            ),
-        ]
+    first = _sample_history(
+        ts_code="000001.SZ",
+        name="Ping An Bank",
+        start_price=9.7,
+        closes=[9.8, 9.95, 10.1, 10.0, 10.8],
     )
+    second = _sample_history(
+        ts_code="600000.SH",
+        name="SPD Bank",
+        start_price=7.9,
+        closes=[7.95, 8.0, 7.98, 8.0, 8.1],
+    )
+    latest = [first[-1], second[-1]]
+    return generate_signals(
+        latest,
+        history_by_code={
+            "000001.SZ": first,
+            "600000.SH": second,
+        },
+    )
+
+
+def _sample_history(
+    ts_code: str,
+    name: str,
+    start_price: float,
+    closes: list[float],
+) -> list[DailyBar]:
+    bars: list[DailyBar] = []
+    previous_close = start_price
+    for index, close in enumerate(closes, start=1):
+        open_price = previous_close
+        high = round(max(open_price, close) * 1.015, 2)
+        low = round(min(open_price, close) * 0.985, 2)
+        bars.append(
+            DailyBar(
+                ts_code=ts_code,
+                name=name,
+                trade_date=f"2026070{index}",
+                open=open_price,
+                high=high,
+                low=low,
+                close=close,
+                pre_close=previous_close,
+                pct_chg=round((close - previous_close) / previous_close * 100, 2),
+                vol=700000.0 + index * 50000.0,
+                amount=800000.0 + index * 60000.0,
+            )
+        )
+        previous_close = close
+    return bars

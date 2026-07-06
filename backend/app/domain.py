@@ -33,3 +33,5 @@ class StockSignal(BaseModel):
     score: float
     suggested_weight: float = Field(ge=0.0, le=1.0)
     reason: str
+    bars: list[DailyBar] = Field(default_factory=list)
+    indicators: list[str] = Field(default_factory=list)
