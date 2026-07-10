@@ -11,3 +11,4 @@ frontend/dist/
 frontend/.npm-cache/
 .env
 .worktrees/
+.superpowers/
