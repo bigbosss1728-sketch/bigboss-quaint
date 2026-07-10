@@ -59,6 +59,8 @@ def test_claim_next_is_fifo_and_atomic(tmp_path):
     first = repo.create("data_initialize", {"start_date": "20150101"})
     second = repo.create("data_incremental", {})
     assert repo.claim_next().id == first
+    assert repo.claim_next() is None
+    repo.succeed(first, {"rows": 1})
     assert repo.claim_next().id == second
     assert repo.claim_next() is None
 
