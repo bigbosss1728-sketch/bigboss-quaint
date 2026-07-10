@@ -1,4 +1,4 @@
-# Personal Quant Platform
+﻿# Personal Quant Platform
 
 个人自用 A 股日频量化平台 MVP。
 
@@ -6,7 +6,7 @@
 
 - Tushare Pro data boundary.
 - Daily stock pool, rating, and signal API.
-- React + Ant Design dashboard.
+- React + TypeScript dark quant dashboard using TailwindCSS, local shadcn-style components, and lightweight-charts.
 - Qlib and vn.py integration boundaries documented, not forced into the first runnable path.
 - No automatic live trading in this MVP.
 

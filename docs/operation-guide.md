@@ -1,10 +1,10 @@
-# 个人量化平台操作手册
+﻿# 个人量化平台操作手册
 
-本手册用于本地启动和使用当前 MVP。默认环境为 Windows PowerShell，项目根目录为命令执行目录。
+本手册用于本地启动和使用当前 React + TypeScript 量化分析平台。默认环境为 Windows PowerShell，命令从项目根目录 `D:\codex\bigboss quaint` 执行。
 
 ## 1. 准备环境
 
-项目依赖已安装时，可以直接启动。首次配置或环境缺失时，先执行：
+首次配置或依赖缺失时执行：
 
 ```powershell
 python -m venv .venv
@@ -22,11 +22,11 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-注意：`.env` 已被 `.gitignore` 忽略，不要把真实 token 写入 README、提交记录或截图。
+`.env` 已被 `.gitignore` 忽略，不要把真实 token 写入 README、提交记录或截图。
 
 ## 2. 启动服务
 
-先启动后端：
+后端：
 
 ```powershell
 .\start-backend.cmd
@@ -38,7 +38,7 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 http://127.0.0.1:8000
 ```
 
-再打开一个 PowerShell 窗口启动前端：
+前端：
 
 ```powershell
 .\start-frontend.cmd
@@ -52,17 +52,15 @@ http://127.0.0.1:5173
 
 两个启动窗口都需要保持打开。
 
-## 3. 使用页面
+## 3. 当前前端界面
 
-1. 打开 `http://127.0.0.1:5173`。
-2. 查看顶部指标：
-   - `Signal Source`：信号来源，`sample` 表示示例数据，`tushare` 表示真实 Tushare 数据。
-   - `Trade Date`：当前股票池对应的交易日。
-   - `Buy Candidates`：买入候选数量。
-   - `Watch List`：观察候选数量。
-3. 点击 `Refresh` 读取后端保存的最新股票池。
-4. 选择交易日后点击 `Run Tushare`，拉取该交易日数据并生成股票池。
-5. 在 `Daily Stock Pool` 表格查看代码、名称、评级、动作、得分、建议仓位和原因。
+当前 UI 是深色金融终端布局，技术栈为 React、TypeScript、TailwindCSS、本地 shadcn 风格组件和 TradingView `lightweight-charts`。
+
+- 左侧导航栏：支持展开 240px 和折叠 64px。
+- 中间图表区：上方为主 K 线图，下方为指标副图面板。
+- 分栏拖拽：拖动主图和指标区之间的细线可调整高度。
+- 底部工具栏：支持周期切换、画线、指标叠加、添加指标、截图导出、数据导出和清空画线。
+- 右侧抽屉：点击页面最右侧窄按钮打开，包含行情、五档盘口、持仓订单、策略参数和日志告警。
 
 ## 4. 常用命令
 
@@ -72,7 +70,7 @@ http://127.0.0.1:5173
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/health
 ```
 
-读取最新股票池：
+读取最新信号：
 
 ```http
 GET /api/signals/latest
@@ -101,23 +99,31 @@ npm.cmd run build
 
 ## 5. 常见问题
 
-### 页面显示 Backend unavailable
+### 页面一片黑
 
-通常是后端未启动或端口不是 `8000`。先确认后端窗口正在运行，再访问：
+先打开浏览器开发者工具查看 Console。当前已修复一类已知原因：示例 K 线数据日期重复，`lightweight-charts` 运行时要求时间序列严格递增，重复或倒序会导致图表初始化异常。
 
-```text
-http://127.0.0.1:8000/api/health
+如果再次出现黑屏：
+
+1. 停止前端窗口。
+2. 在 `frontend` 目录执行：
+
+```powershell
+npm.cmd run build
+npm.cmd run dev
 ```
+
+3. 如果 Vite 提示无法写入 `node_modules\.vite`，关闭占用的 node 进程后重试，或删除 `frontend\node_modules\.vite` 后重新执行 `npm.cmd run dev`。
 
 ### 浏览器提示 127.0.0.1 拒绝连接
 
-对应服务没有运行。访问前端前，先执行：
+对应服务没有运行。访问前端前先执行：
 
 ```powershell
 .\start-frontend.cmd
 ```
 
-访问后端前，先执行：
+访问后端前先执行：
 
 ```powershell
 .\start-backend.cmd
@@ -139,6 +145,6 @@ http://127.0.0.1:8000/api/health
 npm.cmd run dev -- --port 5173
 ```
 
-### 构建时出现 Ant Design `use client` 警告
+### 构建出现 `use client` 警告
 
-这是 Vite 打包 Ant Design 时的已知警告，当前不影响构建产物。
+`lucide-react` 在 Vite 打包时可能出现 `"use client" was ignored` 警告。当前不影响构建产物。

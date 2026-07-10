@@ -1,180 +1,101 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #3c6b6e;
+  background: #f2d398;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 * {
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
-  background: #eef2f7;
-  color: #1f2937;
-  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  overflow: hidden;
+  background: #f2d398;
 }
 
-.app-shell {
-  min-height: 100vh;
-  padding: 24px;
+button,
+input,
+select {
+  font: inherit;
 }
 
-.page-stack {
-  width: 100%;
-}
-
-.page-header {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 0 8px;
-}
-
-.page-title h2 {
-  margin: 0;
-}
-
-.date-input {
-  height: 32px;
-  min-width: 150px;
-  border: 1px solid #d0d5dd;
-  border-radius: 6px;
-  padding: 4px 10px;
-  color: #1f2937;
-  background: #ffffff;
-}
-
-.metric-label {
-  color: #667085;
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.metric-value {
-  margin-top: 4px;
-  color: #111827;
-  font-size: 22px;
-  font-weight: 650;
-  line-height: 30px;
-}
-
-.stock-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.section-heading h4 {
-  margin: 0;
-}
-
-.stock-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 12px;
-}
-
-.stock-card {
-  min-width: 0;
-}
-
-.stock-title {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.stock-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.stock-summary > div {
-  min-width: 0;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 8px;
-  background: #f8fafc;
-}
-
-.stock-label {
-  display: block;
-  color: #667085;
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.stock-summary strong {
-  display: block;
-  overflow-wrap: anywhere;
-  color: #111827;
-  font-size: 15px;
-  line-height: 22px;
-}
-
-.kline-chart {
-  width: 100%;
-  height: 140px;
-  display: block;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #ffffff;
-}
-
-.chart-axis {
-  stroke: #e5e7eb;
-  stroke-width: 1;
-}
-
-.candle-up line,
-.candle-up rect {
-  stroke: #dc2626;
-  fill: #dc2626;
-}
-
-.candle-down line,
-.candle-down rect {
-  stroke: #16a34a;
-  fill: #16a34a;
-}
-
-.chart-empty {
-  display: grid;
-  height: 140px;
-  place-items: center;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  color: #667085;
-  background: #ffffff;
-}
-
-.stock-reason {
-  margin: 10px 0;
-  color: #344054;
-  font-size: 14px;
-  line-height: 22px;
-}
-
-.indicator-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-@media (max-width: 640px) {
-  .app-shell {
-    padding: 12px;
+@layer components {
+  .card-glass {
+    border: 1px solid rgba(60, 107, 110, 0.28);
+    border-radius: 8px;
+    background: rgba(242, 211, 152, 0.58);
+    box-shadow: none;
   }
 
-  .page-header {
-    align-items: flex-start;
-    flex-direction: column;
+  .mono-num {
+    font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
   }
 
-  .stock-grid {
-    grid-template-columns: 1fr;
+  .quant-transition {
+    transition-duration: 280ms;
+    transition-timing-function: ease-out;
   }
 
-  .stock-summary {
-    grid-template-columns: 1fr;
+  .view-enter {
+    animation: view-enter 360ms ease-out both;
   }
+}
+
+@keyframes view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Runtime theme overrides so the Vite dev server reflects the palette without a restart. */
+.bg-quant-bg {
+  background-color: #f2d398 !important;
+}
+
+.bg-quant-glass {
+  background-color: rgba(242, 211, 152, 0.58) !important;
+}
+
+.hover\:bg-quant-glassHover:hover,
+.bg-quant-glassHover {
+  background-color: rgba(60, 107, 110, 0.14) !important;
+}
+
+.border-quant-line {
+  border-color: rgba(60, 107, 110, 0.28) !important;
+}
+
+.text-quant-text {
+  color: #3c6b6e !important;
+}
+
+.text-quant-muted {
+  color: rgba(60, 107, 110, 0.76) !important;
+}
+
+.text-quant-disabled {
+  color: rgba(60, 107, 110, 0.46) !important;
 }
