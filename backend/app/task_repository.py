@@ -140,6 +140,7 @@ class TaskRepository:
         finished_epoch = time.time()
         finished_at = _iso_timestamp(finished_epoch)
         with closing(connect_database(self._path)) as connection:
+            connection.execute("BEGIN IMMEDIATE")
             rows = connection.execute(
                 "SELECT id, started_at FROM task_runs WHERE status = 'running'"
             ).fetchall()
@@ -148,7 +149,7 @@ class TaskRepository:
                     """
                     UPDATE task_runs
                     SET status = 'interrupted', finished_at = ?, duration_ms = ?
-                    WHERE id = ?
+                    WHERE id = ? AND status = 'running'
                     """,
                     (
                         finished_at,

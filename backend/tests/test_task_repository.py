@@ -73,6 +73,63 @@ def test_mark_running_interrupted_leaves_queued_tasks_unchanged(tmp_path):
     assert repo.get(queued_id).status == "queued"
 
 
+def test_mark_running_interrupted_does_not_overwrite_terminal_state(
+    tmp_path, monkeypatch
+):
+    database_path = tmp_path / "quant.db"
+    repo = TaskRepository(database_path)
+    run_id = repo.create("data_initialize", {})
+    repo.claim_next()
+    connection = connect_database(database_path)
+    statements = []
+
+    class TerminalAfterSelect:
+        def __init__(self, cursor):
+            self._cursor = cursor
+
+        def fetchall(self):
+            rows = self._cursor.fetchall()
+            connection.execute(
+                """
+                UPDATE task_runs
+                SET status = 'succeeded', result_json = ?, finished_at = ?, duration_ms = ?
+                WHERE id = ?
+                """,
+                (json.dumps({"rows": 1}), "terminal-time", 25, run_id),
+            )
+            return rows
+
+    class RecordingConnection:
+        def execute(self, sql, parameters=()):
+            statement = " ".join(sql.split())
+            statements.append(statement)
+            cursor = connection.execute(sql, parameters)
+            if statement.startswith("SELECT id, started_at"):
+                return TerminalAfterSelect(cursor)
+            return cursor
+
+        def __getattr__(self, name):
+            return getattr(connection, name)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            task_repository,
+            "connect_database",
+            lambda _path: RecordingConnection(),
+        )
+        repo.mark_running_interrupted()
+
+    run = repo.get(run_id)
+    assert run.status == "succeeded"
+    assert run.result == {"rows": 1}
+    assert run.finished_at == "terminal-time"
+    assert run.duration_ms == 25
+    assert statements[0] == "BEGIN IMMEDIATE"
+    assert any(
+        "WHERE id = ? AND status = 'running'" in statement for statement in statements
+    )
+
+
 def test_repository_redacts_secrets_before_writing(tmp_path, monkeypatch):
     configured_secret = "unit-test-sensitive-value"
     monkeypatch.setenv("TUSHARE_TOKEN", configured_secret)
