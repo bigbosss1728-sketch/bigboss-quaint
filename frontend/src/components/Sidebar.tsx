@@ -16,8 +16,7 @@ type SidebarProps = {
 
 export function Sidebar({ collapsed, activeMenuId, activeSubmenu, onToggle, onMenuChange }: SidebarProps) {
   const selectMenu = (menuId: string, child: string) => {
-    const view = menuId === "position" ? "portfolio" : menuId === "kline" ? "chart" : menuId === "qlib" ? "qlib" : "page";
-    onMenuChange(menuId, view, child);
+    onMenuChange(menuId, viewForMenu(menuId), child);
   };
 
   return (
@@ -78,4 +77,42 @@ export function Sidebar({ collapsed, activeMenuId, activeSubmenu, onToggle, onMe
       </nav>
     </aside>
   );
+}
+
+export function MobileNavigation({ activeMenuId, activeSubmenu, onMenuChange }: Pick<SidebarProps, "activeMenuId" | "activeSubmenu" | "onMenuChange">) {
+  const activeMenu = menuItems.find((item) => item.id === activeMenuId) ?? menuItems[0];
+
+  return (
+    <nav aria-label="移动导航" className="grid shrink-0 grid-cols-2 gap-2 border-b border-quant-line bg-quant-bg p-2 md:hidden">
+      <label>
+        <span className="sr-only">一级导航</span>
+        <select
+          className="h-11 w-full rounded-quant border border-quant-line bg-quant-glass px-2 text-sm text-quant-text"
+          value={activeMenuId}
+          onChange={(event) => {
+            const menu = menuItems.find((item) => item.id === event.target.value) ?? menuItems[0];
+            onMenuChange(menu.id, viewForMenu(menu.id), menu.children[0] ?? menu.label);
+          }}
+        >
+          {menuItems.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+        </select>
+      </label>
+      <label>
+        <span className="sr-only">子导航</span>
+        <select
+          className="h-11 w-full rounded-quant border border-quant-line bg-quant-glass px-2 text-sm text-quant-text disabled:opacity-50"
+          value={activeMenu.children.length > 0 ? activeSubmenu : ""}
+          disabled={activeMenu.children.length === 0}
+          onChange={(event) => onMenuChange(activeMenu.id, viewForMenu(activeMenu.id), event.target.value)}
+        >
+          {activeMenu.children.length === 0 ? <option value="">无子项</option> : null}
+          {activeMenu.children.map((child) => <option key={child} value={child}>{child}</option>)}
+        </select>
+      </label>
+    </nav>
+  );
+}
+
+function viewForMenu(menuId: string): MainView {
+  return menuId === "position" ? "portfolio" : menuId === "kline" ? "chart" : menuId === "qlib" ? "qlib" : "page";
 }

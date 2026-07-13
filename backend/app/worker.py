@@ -8,6 +8,7 @@ from backend.app.data_pipeline import (
 )
 from backend.app.data_store import ParquetDataStore
 from backend.app.market_data import TushareMarketData
+from backend.app.task_process import spawn_worker_once
 from backend.app.task_repository import TaskRepository
 from backend.app.universe_repository import UniverseRepository
 
@@ -25,13 +26,15 @@ def run_once(services: Services, dispatch=DISPATCH) -> bool:
     handler = dispatch.get(task.task_type)
     if handler is None:
         services.tasks.fail(task.id, f"Unknown task type: {task.task_type}")
-        return True
-    try:
-        result = handler(task.id, task.params, services)
-    except Exception as exc:
-        services.tasks.fail(task.id, str(exc))
     else:
-        services.tasks.succeed(task.id, result)
+        try:
+            result = handler(task.id, task.params, services)
+        except Exception as exc:
+            services.tasks.fail(task.id, str(exc))
+        else:
+            services.tasks.succeed(task.id, result)
+    if services.tasks.has_queued():
+        spawn_worker_once()
     return True
 
 

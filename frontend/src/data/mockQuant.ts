@@ -18,7 +18,7 @@ import type {
 
 export const menuItems: MenuItem[] = [
   { id: "kline", label: "K线行情分析", icon: BarChart3, children: ["主图分析"] },
-  { id: "qlib", label: "Qlib 閫夎偂鐮旂┒", icon: BrainCircuit, children: ["杩愯鍘嗗彶"] },
+  { id: "qlib", label: "Qlib 选股研究", icon: BrainCircuit, children: ["运行历史"] },
   { id: "trade", label: "实盘交易", icon: BriefcaseBusiness, children: ["委托下单", "订单管理", "风控检查"] },
   { id: "position", label: "持仓资产分布", icon: Settings2, children: [] },
   { id: "ledger", label: "资金流水对账", icon: ReceiptText, children: ["资金流水", "成交核对", "费用统计"] },

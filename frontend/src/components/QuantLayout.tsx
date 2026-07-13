@@ -6,7 +6,7 @@ import { PortfolioAssets } from "./PortfolioAssets";
 import { QuantTransition } from "./QuantTransition";
 import { QlibWorkspace } from "./qlib/QlibWorkspace";
 import { RightInfoDrawer } from "./RightInfoDrawer";
-import { Sidebar, type MainView } from "./Sidebar";
+import { MobileNavigation, Sidebar, type MainView } from "./Sidebar";
 
 export function QuantLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -52,7 +52,12 @@ export function QuantLayout() {
     );
 
   return (
-    <QuantTransition className="relative flex h-screen overflow-hidden bg-quant-bg text-quant-text">
+    <QuantTransition className="relative flex h-screen flex-col overflow-hidden bg-quant-bg text-quant-text md:flex-row">
+      <MobileNavigation
+        activeMenuId={activeMenuId}
+        activeSubmenu={activeSubmenu}
+        onMenuChange={handleMenuChange}
+      />
       <Sidebar
         collapsed={sidebarCollapsed}
         activeMenuId={activeMenuId}
@@ -60,7 +65,7 @@ export function QuantLayout() {
         onToggle={() => setSidebarCollapsed((value) => !value)}
         onMenuChange={handleMenuChange}
       />
-      <div key={`${activeMenuId}-${activeSubmenu}`} className="flex min-w-0 flex-1 view-enter">
+      <div key={`${activeMenuId}-${activeSubmenu}`} className="flex min-h-0 min-w-0 flex-1 view-enter">
         {page}
       </div>
       {activeMenuId === "kline" ? <RightInfoDrawer open={drawerOpen} onOpenChange={setDrawerOpen} /> : null}

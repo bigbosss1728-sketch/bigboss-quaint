@@ -11,6 +11,7 @@ const ACTIVE_STATUSES = new Set<TaskRun["status"]>(["queued", "running"]);
 export function RunHistoryPage() {
   const [tasks, setTasks] = useState<TaskRun[]>([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [pendingKind, setPendingKind] = useState<DataTaskKind | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -28,8 +29,10 @@ export function RunHistoryPage() {
         }
       } catch (loadError) {
         if (!controller.signal.aborted) {
-          setError(loadError instanceof Error ? loadError.message : "Unable to load tasks.");
+          setError(loadError instanceof Error ? loadError.message : "无法加载任务。");
         }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
@@ -45,60 +48,76 @@ export function RunHistoryPage() {
     setError("");
     try {
       await quantApi.createDataTask(kind);
+      setLoading(true);
       setRefreshKey((value) => value + 1);
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Unable to create task.");
+      setError(createError instanceof Error ? createError.message : "无法创建任务。");
     } finally {
       setPendingKind(null);
     }
   };
+
+  const activeTaskCount = tasks.filter((task) => ACTIVE_STATUSES.has(task.status)).length;
+  const latestStatus = tasks[0] ? statusLabel(tasks[0].status) : "";
+  const liveMessage = error
+    ? `加载失败：${error}`
+    : pendingKind
+      ? "正在创建任务。"
+      : loading
+        ? "正在加载运行历史。"
+        : activeTaskCount > 0
+          ? `有 ${activeTaskCount} 个任务正在排队或运行，最近任务状态：${latestStatus}。`
+          : latestStatus
+            ? `所有任务均已结束，最近任务状态：${latestStatus}。`
+            : "";
 
   return (
     <main className="flex min-w-0 flex-1 overflow-auto bg-quant-bg p-3 text-quant-text sm:p-4">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="text-xs text-quant-muted">Qlib 閫夎偂鐮旂┒</div>
-            <h1 className="mt-1 text-xl font-semibold">杩愯鍘嗗彶</h1>
+            <div className="text-xs text-quant-muted">Qlib 选股研究</div>
+            <h1 className="mt-1 text-xl font-semibold">运行历史</h1>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button disabled={pendingKind !== null} onClick={() => void createTask("initialize")}>
               <Database className="h-4 w-4" />
-              鍒濆鍖栨暟鎹�
+              初始化数据
             </Button>
             <Button disabled={pendingKind !== null} onClick={() => void createTask("update")}>
               <RefreshCw className="h-4 w-4" />
-              鏇存柊鏁版嵁
+              更新数据
             </Button>
           </div>
         </div>
 
-        <div className="min-h-5 text-xs text-quant-down" aria-live="polite">
-          {error}
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {liveMessage}
         </div>
+        <div className="min-h-5 text-xs text-quant-down">{error}</div>
 
         <Card>
           <CardHeader>
-            <CardTitle>鏁版嵁浠诲姟</CardTitle>
+            <CardTitle>数据任务</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {tasks.length === 0 && !error ? (
               <div className="px-4 py-10 text-center text-sm text-quant-muted">
-                灏氭湭鍒濆鍖栨暟鎹紝璇峰厛杩愯鍘嗗彶鏁版嵁鍒濆鍖栥€俙
+                尚未初始化数据，请先运行历史数据初始化。
               </div>
             ) : (
-              <div className="overflow-x-auto" aria-live="polite">
+              <div className="overflow-x-auto">
                 <Table className="min-w-[960px]">
                   <THead>
                     <Tr>
-                      <Th>浠诲姟</Th>
-                      <Th>鐘舵€�</Th>
-                      <Th>闃舵</Th>
-                      <Th>杩涘害</Th>
-                      <Th>寮€濮�</Th>
-                      <Th>缁撴潫</Th>
-                      <Th>鑰楁椂</Th>
-                      <Th>閿欒</Th>
+                      <Th>任务</Th>
+                      <Th>状态</Th>
+                      <Th>阶段</Th>
+                      <Th>进度</Th>
+                      <Th>开始</Th>
+                      <Th>结束</Th>
+                      <Th>耗时</Th>
+                      <Th>错误</Th>
                     </Tr>
                   </THead>
                   <TBody>
@@ -127,7 +146,17 @@ export function RunHistoryPage() {
 
 function StatusBadge({ status }: { status: TaskRun["status"] }) {
   const color = status === "succeeded" ? "text-quant-up" : status === "failed" ? "text-quant-down" : "text-quant-muted";
-  return <Badge className={color}>{status}</Badge>;
+  return <Badge className={color}>{statusLabel(status)}</Badge>;
+}
+
+function statusLabel(status: TaskRun["status"]): string {
+  return {
+    queued: "排队中",
+    running: "运行中",
+    succeeded: "成功",
+    failed: "失败",
+    interrupted: "已中断",
+  }[status];
 }
 
 function formatTimestamp(value: string | null): string {

@@ -129,6 +129,12 @@ class TaskRepository:
             ).fetchone()
         return _task_run(row) if row else None
 
+    def has_queued(self) -> bool:
+        with closing(connect_database(self._path)) as connection:
+            return connection.execute(
+                "SELECT 1 FROM task_runs WHERE status = 'queued' LIMIT 1"
+            ).fetchone() is not None
+
     def list(self, limit: int = 100) -> list[TaskRun]:
         with closing(connect_database(self._path)) as connection:
             rows = connection.execute(
