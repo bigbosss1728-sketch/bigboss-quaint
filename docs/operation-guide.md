@@ -151,7 +151,15 @@ backend/.data/
 - `market/raw`：`daily`、`adj_factor`、`suspend`、`limit` 等按交易日保存的 Parquet 分区，以及静态快照。
 - `latest_signals.json`：旧版信号接口生成的兼容数据（运行旧版 `/api/pipeline/run` 后出现）。
 
-不要在任务为 `running` 时移动、覆盖或删除这些文件。备份时先停止后端，复制整个 `backend\.data` 目录即可。
+不要在任务为 `queued` 或 `running` 时移动、覆盖或删除这些文件。备份或覆盖 `backend\.data` 前，先停止 API，等待所有已提交任务处理完毕并进入 `succeeded`、`failed` 或 `interrupted` 终态，再确认没有独立 worker 进程。可用以下只读命令检查：
+
+```powershell
+Get-CimInstance Win32_Process |
+  Where-Object { $_.CommandLine -match 'python(?:\.exe)?\s+-m\s+backend\.app\.worker(?:\s|$)' } |
+  Select-Object ProcessId, CommandLine
+```
+
+如果仍有 `queued`、`running` 任务或命令仍返回 worker，先让对应任务正常处理完成；无法正常结束时，停止对应任务或进程并确认检查结果为空，然后才能复制备份或用备份覆盖目录。不要只关闭 API 窗口后立即操作数据文件。
 
 ## 7. 其他常用命令
 
@@ -202,11 +210,19 @@ npm.cmd run build
 
 ### 任务显示 failed
 
-先读取 `error_message`，修复日期、Tushare 权限、网络或数据校验问题，再重新提交相同初始化或增量请求。已成功写入的分区会被复用，不必删除 `backend\.data`。
+先读取 `error_message`，修复日期、Tushare 权限或网络问题，再重新提交相同初始化或增量请求。已成功写入的分区会被复用，不要删除整个 `backend\.data`。
 
 ```powershell
 Invoke-RestMethod "http://127.0.0.1:8000/api/tasks/$id"
 ```
+
+如果任务在数据校验阶段失败，pipeline 可能已经写入损坏的 Parquet，而重跑会把已存在的分区当作可复用数据并跳过。此时按以下顺序恢复：
+
+1. 记录失败任务的 `error_message` 和任务 ID，停止 API，避免接收新任务。
+2. 等待现有 `queued`、`running` 任务处理完毕并进入终态，再用“运行时目录”中的只读 PowerShell 命令确认没有 `python -m backend.app.worker` 进程；如仍存在，先停止对应任务或进程。
+3. 根据 `error_message` 中的数据集和交易日，精确定位 `backend/.data/market/raw/<dataset>/trade_date=YYYYMMDD/data.parquet`，不要凭日期猜测其他数据集。
+4. 先备份待处理的 Parquet 文件或其分区目录，再只删除已经确认损坏的那个分区。
+5. 重新启动 API，提交原初始化或增量请求。其余校验成功的分区会继续复用，无需重下，也不要全删 `backend\.data` 或 `market\raw`。
 
 ### 任务显示 interrupted
 
@@ -214,7 +230,7 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/tasks/$id"
 
 ### 数据文件需要恢复
 
-停止后端后，用之前的完整备份覆盖 `backend\.data`。如果没有备份，保留现有目录并重新提交缺失日期范围，让任务按分区补齐；不要只删除 `quant.db`，否则数据库记录与 Parquet 分区可能不一致。
+按“运行时目录”中的停机流程，停止 API，等待 `queued`、`running` 任务处理完毕并确认没有 worker 后，才可用之前的完整备份覆盖 `backend\.data`。如果仍有任务或 worker，先停止对应任务或进程，不要开始复制。没有备份时保留现有目录并重新提交缺失日期范围，让任务按分区补齐；不要只删除 `quant.db`，否则数据库记录与 Parquet 分区可能不一致。
 
 ## 9. 常见问题
 
