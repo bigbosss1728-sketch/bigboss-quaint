@@ -3,6 +3,7 @@ import os
 import pandas as pd
 
 from backend.app.domain import DailyBar
+from backend.app.market_data import TushareMarketData
 from backend.app.settings import load_environment
 
 
@@ -19,15 +20,9 @@ class TushareClient:
         if not self._token:
             raise RuntimeError("TUSHARE_TOKEN is required to fetch market data.")
 
-        import tushare as ts
-
-        pro = ts.pro_api(self._token)
-        daily = pro.daily(trade_date=trade_date)
-        names = pro.stock_basic(
-            exchange="",
-            list_status="L",
-            fields="ts_code,name",
-        )
+        market_data = TushareMarketData(token=self._token)
+        daily = market_data.fetch_daily(trade_date=trade_date)
+        names = market_data.fetch_stock_basic()
         data = daily.merge(names, on="ts_code", how="left").head(limit)
         return [_daily_bar_from_row(row) for _, row in data.iterrows()]
 
@@ -40,10 +35,10 @@ class TushareClient:
         if not self._token:
             raise RuntimeError("TUSHARE_TOKEN is required to fetch market data.")
 
-        import tushare as ts
-
-        pro = ts.pro_api(self._token)
-        daily = pro.daily(ts_code=ts_code, end_date=end_date)
+        daily = TushareMarketData(token=self._token).fetch_daily(
+            ts_code=ts_code,
+            end_date=end_date,
+        )
         data = daily.sort_values("trade_date").tail(limit)
         return [_daily_bar_from_row(row) for _, row in data.iterrows()]
 
