@@ -1,6 +1,7 @@
 import pandas as pd
+import pytest
 
-from backend.app.universe_service import UniverseParams, build_universe
+from backend.app.universe_service import UniverseParams, UniverseResult, build_universe
 
 
 TRADE_DATE = "20260710"
@@ -123,6 +124,29 @@ def test_build_universe_funnel_counts_are_monotonic():
     assert counts == sorted(counts, reverse=True)
     assert counts[0] == len(CODES)
     assert counts[-1] == 1
+
+
+def test_universe_result_funnel_rejects_assignment():
+    result = build_universe(TRADE_DATE, *universe_frames(), UniverseParams())
+
+    with pytest.raises(TypeError):
+        result.funnel["initial"] = 0
+
+
+def test_universe_result_funnel_rejects_deletion():
+    result = build_universe(TRADE_DATE, *universe_frames(), UniverseParams())
+
+    with pytest.raises(TypeError):
+        del result.funnel["initial"]
+
+
+def test_universe_result_copies_source_funnel():
+    source = {"initial": 1}
+    result = UniverseResult("20260710", (), source)
+
+    source["initial"] = 0
+
+    assert result.funnel["initial"] == 1
 
 
 def test_build_universe_uses_historical_dates_not_current_list_status():
