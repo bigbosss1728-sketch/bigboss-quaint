@@ -4,6 +4,7 @@ import { ChartWorkspace } from "./ChartWorkspace";
 import { MenuPage } from "./MenuPage";
 import { PortfolioAssets } from "./PortfolioAssets";
 import { QuantTransition } from "./QuantTransition";
+import { QlibWorkspace } from "./qlib/QlibWorkspace";
 import { RightInfoDrawer } from "./RightInfoDrawer";
 import { Sidebar, type MainView } from "./Sidebar";
 
@@ -42,6 +43,8 @@ export function QuantLayout() {
   const page =
     activeView === "portfolio" ? (
       <PortfolioAssets />
+    ) : activeView === "qlib" ? (
+      <QlibWorkspace submenu={activeSubmenu} />
     ) : activeView === "chart" ? (
       <ChartWorkspace />
     ) : (

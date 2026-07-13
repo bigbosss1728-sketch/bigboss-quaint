@@ -4,7 +4,7 @@ import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import { Tooltip } from "./ui/tooltip";
 
-export type MainView = "chart" | "portfolio" | "page";
+export type MainView = "chart" | "portfolio" | "qlib" | "page";
 
 type SidebarProps = {
   collapsed: boolean;
@@ -16,7 +16,7 @@ type SidebarProps = {
 
 export function Sidebar({ collapsed, activeMenuId, activeSubmenu, onToggle, onMenuChange }: SidebarProps) {
   const selectMenu = (menuId: string, child: string) => {
-    const view = menuId === "position" ? "portfolio" : menuId === "kline" ? "chart" : "page";
+    const view = menuId === "position" ? "portfolio" : menuId === "kline" ? "chart" : menuId === "qlib" ? "qlib" : "page";
     onMenuChange(menuId, view, child);
   };
 
@@ -31,7 +31,7 @@ export function Sidebar({ collapsed, activeMenuId, activeSubmenu, onToggle, onMe
         <div className={cn("overflow-hidden whitespace-nowrap text-sm font-semibold tracking-wide text-quant-text", collapsed && "w-0")}>
           QUANT OS
         </div>
-        <Button variant="ghost" className="h-8 w-8 px-0" onClick={onToggle}>
+        <Button variant="ghost" className="h-8 w-8 px-0" onClick={onToggle} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
       </div>
