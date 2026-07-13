@@ -155,7 +155,7 @@ backend/.data/
 
 ```powershell
 Get-CimInstance Win32_Process |
-  Where-Object { $_.CommandLine -match 'python(?:\.exe)?\s+-m\s+backend\.app\.worker(?:\s|$)' } |
+  Where-Object { $_.CommandLine -match 'python(?:\.exe)?"?\s+-m\s+backend\.app\.worker(?:\s|$)' } |
   Select-Object ProcessId, CommandLine
 ```
 
@@ -220,8 +220,10 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/tasks/$id"
 
 1. 记录失败任务的 `error_message` 和任务 ID，停止 API，避免接收新任务。
 2. 等待现有 `queued`、`running` 任务处理完毕并进入终态，再用“运行时目录”中的只读 PowerShell 命令确认没有 `python -m backend.app.worker` 进程；如仍存在，先停止对应任务或进程。
-3. 根据 `error_message` 中的数据集和交易日，精确定位 `backend/.data/market/raw/<dataset>/trade_date=YYYYMMDD/data.parquet`，不要凭日期猜测其他数据集。
-4. 先备份待处理的 Parquet 文件或其分区目录，再只删除已经确认损坏的那个分区。
+3. `error_message` 只提供交易日和 issue code，不提供数据集。按 issue code 定位 `backend/.data/market/raw/<dataset>/trade_date=YYYYMMDD/data.parquet`：
+   - `empty_daily`、`duplicate_key`、`null_ohlc`、`non_positive_ohlc`、`invalid_high`、`invalid_low`、`negative_volume`、`negative_amount`：先检查该交易日的 `daily` 分区。
+   - `missing_adjustment_factor`：同时比较该交易日 `daily` 与 `adj_factor` 分区的 `ts_code` 覆盖和对应内容，判断是日线多出、复权因子缺失还是一侧内容损坏。
+4. 先备份待处理的 Parquet 文件或其分区目录，再只删除已经确认损坏的一侧。对于 `missing_adjustment_factor`，如果无法判断是哪一侧损坏，先备份同日 `daily` 和 `adj_factor` 两个分区，再删除这两个分区并一起重拉。
 5. 重新启动 API，提交原初始化或增量请求。其余校验成功的分区会继续复用，无需重下，也不要全删 `backend\.data` 或 `market\raw`。
 
 ### 任务显示 interrupted
