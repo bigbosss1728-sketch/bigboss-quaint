@@ -32,8 +32,9 @@ def _daily(trade_date: str, *, valid: bool = True) -> pd.DataFrame:
 
 
 class FakeMarketData:
-    def __init__(self, invalid_dates=()):
+    def __init__(self, invalid_dates=(), empty_dates=()):
         self.invalid_dates = set(invalid_dates)
+        self.empty_dates = set(empty_dates)
         self.day_calls = []
 
     def fetch_trade_cal(self):
@@ -61,9 +62,12 @@ class FakeMarketData:
 
     def fetch_trade_date(self, trade_date):
         self.day_calls.append(trade_date)
+        daily = _daily(trade_date, valid=trade_date not in self.invalid_dates)
+        if trade_date in self.empty_dates:
+            daily = daily.iloc[0:0]
         return MarketDayFrames(
             trade_date=trade_date,
-            daily=_daily(trade_date, valid=trade_date not in self.invalid_dates),
+            daily=daily,
             adj_factor=pd.DataFrame(
                 [{"ts_code": "000001.SZ", "trade_date": trade_date, "adj_factor": 1.0}]
             ),
@@ -133,8 +137,11 @@ def test_initialize_skips_existing_partitions_and_reports_stages_in_order(tmp_pa
         "publish",
     ]
     assert recording.stages[6:] == recording.stages[:6]
-    assert first["published_dates"] == [DATES[0]]
-    assert second["published_dates"] == []
+    assert set(first) == {"universe_run_ids", "published_count", "partitions_written"}
+    assert len(first["universe_run_ids"]) == 1
+    assert first["published_count"] == 1
+    assert second["universe_run_ids"] == []
+    assert second["published_count"] == 0
     with closing(connect_database(database_path)) as connection:
         assert connection.execute("SELECT COUNT(*) FROM universe_runs").fetchone()[0] == 1
 
@@ -176,3 +183,81 @@ def test_validation_failure_leaves_previously_published_universe_untouched(tmp_p
         ).fetchall()
     assert [tuple(row) for row in after] == [tuple(row) for row in before]
     assert [tuple(row) for row in after_members] == [tuple(row) for row in before_members]
+
+
+def test_empty_daily_for_open_candidate_date_fails_without_publishing(tmp_path):
+    market_data = FakeMarketData(empty_dates={DATES[0]})
+    services, tasks, _recording, database_path = _services(tmp_path, market_data)
+    params = {
+        "start_date": DATES[0],
+        "end_date": DATES[0],
+        "listing_days": 1,
+        "liquidity_days": 1,
+        "min_average_amount": 0,
+    }
+    run_id = tasks.create("data_initialize", params)
+    tasks.claim_next()
+
+    with pytest.raises(ValueError, match="Market data validation failed"):
+        run_data_initialize(run_id, params, services)
+
+    with closing(connect_database(database_path)) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM universe_runs").fetchone()[0] == 0
+
+
+def test_history_datasets_are_each_read_once_for_multiple_dates(tmp_path):
+    market_data = FakeMarketData()
+    services, tasks, _recording, _database_path = _services(tmp_path, market_data)
+    reads = {}
+    read_dataset = services.store.read_dataset
+
+    def counting_read(dataset, *args, **kwargs):
+        reads[dataset] = reads.get(dataset, 0) + 1
+        return read_dataset(dataset, *args, **kwargs)
+
+    services.store.read_dataset = counting_read
+    params = {
+        "start_date": DATES[0],
+        "end_date": DATES[1],
+        "listing_days": 1,
+        "liquidity_days": 1,
+        "min_average_amount": 0,
+    }
+
+    _run(tasks, services, params)
+
+    assert {dataset: reads[dataset] for dataset in (
+        "daily",
+        "adj_factor",
+        "suspend",
+        "limit",
+        "stock_basic",
+        "namechange",
+    )} == {
+        "daily": 1,
+        "adj_factor": 1,
+        "suspend": 1,
+        "limit": 1,
+        "stock_basic": 1,
+        "namechange": 1,
+    }
+
+
+def test_second_candidate_validation_failure_publishes_neither_date(tmp_path):
+    market_data = FakeMarketData(invalid_dates={DATES[1]})
+    services, tasks, _recording, database_path = _services(tmp_path, market_data)
+    params = {
+        "start_date": DATES[0],
+        "end_date": DATES[1],
+        "listing_days": 1,
+        "liquidity_days": 1,
+        "min_average_amount": 0,
+    }
+    run_id = tasks.create("data_initialize", params)
+    tasks.claim_next()
+
+    with pytest.raises(ValueError, match=f"Market data validation failed for {DATES[1]}"):
+        run_data_initialize(run_id, params, services)
+
+    with closing(connect_database(database_path)) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM universe_runs").fetchone()[0] == 0

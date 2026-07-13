@@ -75,15 +75,23 @@ def _run_market_data_task(run_id: str, params: dict, services: Services) -> dict
             written += 1
 
     services.tasks.progress(run_id, "validation", 75)
-    market_by_date = {
-        trade_date: _market_frame(services.store, trade_date)
-        for trade_date in candidates
-    }
+    daily = services.store.read_dataset("daily", end_date=end_date)
+    factors = services.store.read_dataset("adj_factor", end_date=end_date)
+    daily_history = daily.merge(
+        factors, on=["ts_code", "trade_date"], how="left"
+    )
+    suspensions = services.store.read_dataset("suspend", end_date=end_date)
+    limits = services.store.read_dataset("limit", end_date=end_date)
     failures = [
         (trade_date, issue.code)
-        for trade_date, frame in market_by_date.items()
-        for issue in validate_market_frame(frame)
+        for trade_date in candidates
+        for issue in validate_market_frame(_on_date(daily_history, trade_date))
     ]
+    failures.extend(
+        (trade_date, "empty_daily")
+        for trade_date in candidates
+        if _on_date(daily, trade_date).empty
+    )
     if failures:
         trade_date, code = failures[0]
         raise ValueError(f"Market data validation failed for {trade_date}: {code}")
@@ -94,30 +102,22 @@ def _run_market_data_task(run_id: str, params: dict, services: Services) -> dict
         liquidity_days=int(params.get("liquidity_days", 20)),
         min_average_amount=float(params.get("min_average_amount", 50_000_000)),
     )
-    results = []
-    for trade_date in candidates:
-        daily_history = _history(services.store, trade_date)
-        results.append(
-            build_universe(
-                trade_date,
-                daily_history,
-                stocks,
-                names,
-                services.store.read_dataset(
-                    "suspend", start_date=start_date, end_date=trade_date
-                ),
-                services.store.read_dataset(
-                    "limit", start_date=start_date, end_date=trade_date
-                ),
-                universe_params,
-            )
-        )
-
     services.tasks.progress(run_id, "publish", 100)
-    for result in results:
-        services.universe.publish(run_id, params, result)
+    universe_run_ids = []
+    for trade_date in candidates:
+        result = build_universe(
+            trade_date,
+            _through_date(daily_history, trade_date),
+            stocks,
+            names,
+            _on_date(suspensions, trade_date),
+            _on_date(limits, trade_date),
+            universe_params,
+        )
+        universe_run_ids.append(services.universe.publish(run_id, params, result))
     return {
-        "published_dates": [result.trade_date for result in results],
+        "universe_run_ids": universe_run_ids,
+        "published_count": len(universe_run_ids),
         "partitions_written": written,
     }
 
@@ -140,15 +140,13 @@ def _open_dates(calendar: pd.DataFrame, start_date: str, end_date: str) -> list[
     return sorted(dates[open_mask & dates.between(start_date, end_date)].unique())
 
 
-def _market_frame(store: ParquetDataStore, trade_date: str) -> pd.DataFrame:
-    daily = store.read_dataset("daily", start_date=trade_date, end_date=trade_date)
-    factors = store.read_dataset(
-        "adj_factor", start_date=trade_date, end_date=trade_date
-    )
-    return daily.merge(factors, on=["ts_code", "trade_date"], how="left")
+def _on_date(frame: pd.DataFrame, trade_date: str) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    return frame[frame["trade_date"].astype(str) == trade_date]
 
 
-def _history(store: ParquetDataStore, end_date: str) -> pd.DataFrame:
-    daily = store.read_dataset("daily", end_date=end_date)
-    factors = store.read_dataset("adj_factor", end_date=end_date)
-    return daily.merge(factors, on=["ts_code", "trade_date"], how="left")
+def _through_date(frame: pd.DataFrame, trade_date: str) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    return frame[frame["trade_date"].astype(str) <= trade_date]
