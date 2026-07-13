@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from contextlib import closing
 from dataclasses import dataclass
@@ -25,6 +26,9 @@ CREATE TABLE IF NOT EXISTS task_runs (
   duration_ms INTEGER
 );
 """
+
+REDACTED_SECRET = "[REDACTED_SECRET]"
+SENSITIVE_KEY_PARTS = ("token", "secret", "password", "authorization")
 
 
 @dataclass(frozen=True)
@@ -58,7 +62,7 @@ class TaskRepository:
                 INSERT INTO task_runs (id, task_type, status, params_json, created_at)
                 VALUES (?, ?, 'queued', ?, ?)
                 """,
-                (run_id, task_type, json.dumps(params), _utc_now()),
+                (run_id, task_type, json.dumps(_sanitize(params)), _utc_now()),
             )
             connection.commit()
         return run_id
@@ -101,6 +105,11 @@ class TaskRepository:
 
     def progress(self, run_id: str, stage: str, progress: int) -> None:
         with closing(connect_database(self._path)) as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT status FROM task_runs WHERE id = ?", (run_id,)
+            ).fetchone()
+            _require_running(row, run_id)
             connection.execute(
                 "UPDATE task_runs SET stage = ?, progress = ? WHERE id = ?",
                 (stage, progress, run_id),
@@ -156,12 +165,20 @@ class TaskRepository:
         result: dict | None = None,
         error_message: str | None = None,
     ) -> None:
-        finished_epoch = time.time()
-        finished_at = _iso_timestamp(finished_epoch)
         with closing(connect_database(self._path)) as connection:
+            connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
-                "SELECT started_at FROM task_runs WHERE id = ?", (run_id,)
+                "SELECT status, started_at FROM task_runs WHERE id = ?", (run_id,)
             ).fetchone()
+            if row is None:
+                raise KeyError(run_id)
+            if row["status"] == status:
+                connection.commit()
+                return
+            _require_running(row, run_id)
+
+            finished_epoch = time.time()
+            finished_at = _iso_timestamp(finished_epoch)
             connection.execute(
                 """
                 UPDATE task_runs
@@ -171,8 +188,8 @@ class TaskRepository:
                 """,
                 (
                     status,
-                    json.dumps(result) if result is not None else None,
-                    error_message,
+                    json.dumps(_sanitize(result)) if result is not None else None,
+                    _sanitize(error_message),
                     finished_at,
                     _duration_ms(row["started_at"], finished_epoch),
                     run_id,
@@ -188,14 +205,23 @@ def _task_run(row) -> TaskRun:
         status=row["status"],
         stage=row["stage"],
         progress=row["progress"],
-        params=json.loads(row["params_json"]),
-        result=json.loads(row["result_json"]) if row["result_json"] else None,
-        error_message=row["error_message"],
+        params=_sanitize(json.loads(row["params_json"])),
+        result=(
+            _sanitize(json.loads(row["result_json"])) if row["result_json"] else None
+        ),
+        error_message=_sanitize(row["error_message"]),
         created_at=row["created_at"],
         started_at=row["started_at"],
         finished_at=row["finished_at"],
         duration_ms=row["duration_ms"],
     )
+
+
+def _require_running(row, run_id: str) -> None:
+    if row is None:
+        raise KeyError(run_id)
+    if row["status"] != "running":
+        raise ValueError(f"Task {run_id} is {row['status']}, expected running")
 
 
 def _utc_now() -> str:
@@ -210,3 +236,23 @@ def _duration_ms(started_at: str | None, finished_epoch: float) -> int | None:
     if started_at is None:
         return None
     return round((finished_epoch - datetime.fromisoformat(started_at).timestamp()) * 1000)
+
+
+def _sanitize(value):
+    configured_secret = os.getenv("TUSHARE_TOKEN")
+    return _sanitize_value(value, configured_secret)
+
+
+def _sanitize_value(value, configured_secret: str | None):
+    if isinstance(value, dict):
+        return {
+            key: REDACTED_SECRET
+            if any(part in str(key).casefold() for part in SENSITIVE_KEY_PARTS)
+            else _sanitize_value(item, configured_secret)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_value(item, configured_secret) for item in value]
+    if isinstance(value, str) and configured_secret:
+        return value.replace(configured_secret, REDACTED_SECRET)
+    return value
