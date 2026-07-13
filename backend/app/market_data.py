@@ -55,8 +55,15 @@ class TushareMarketData:
         return _normalize_keys(self._pro.daily(**arguments))
 
     def fetch_stock_basic(self) -> pd.DataFrame:
+        fields = "ts_code,name,industry,list_date,delist_date,list_status,exchange,market"
         return _normalize_keys(
-            self._pro.stock_basic(exchange="", list_status="L", fields="ts_code,name")
+            pd.concat(
+                [
+                    self._pro.stock_basic(exchange="", list_status=status, fields=fields)
+                    for status in ("L", "D", "P")
+                ],
+                ignore_index=True,
+            ).drop_duplicates(subset="ts_code")
         )
 
     def fetch_namechange(self) -> pd.DataFrame:
