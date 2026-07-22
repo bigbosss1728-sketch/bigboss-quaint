@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
-  color: #3c6b6e;
-  background: #f2d398;
-  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  color: #1d1d1f;
+  background: #f5f5f7;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -25,7 +25,7 @@ body,
 body {
   margin: 0;
   overflow: hidden;
-  background: #f2d398;
+  background: #f5f5f7;
 }
 
 button,
@@ -36,10 +36,11 @@ select {
 
 @layer components {
   .card-glass {
-    border: 1px solid rgba(60, 107, 110, 0.28);
-    border-radius: 8px;
-    background: rgba(242, 211, 152, 0.58);
-    box-shadow: none;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.055);
+    backdrop-filter: blur(24px) saturate(160%);
   }
 
   .mono-num {
@@ -72,30 +73,30 @@ select {
 
 /* Runtime theme overrides so the Vite dev server reflects the palette without a restart. */
 .bg-quant-bg {
-  background-color: #f2d398 !important;
+  background-color: #f5f5f7 !important;
 }
 
 .bg-quant-glass {
-  background-color: rgba(242, 211, 152, 0.58) !important;
+  background-color: rgba(255, 255, 255, 0.82) !important;
 }
 
 .hover\:bg-quant-glassHover:hover,
 .bg-quant-glassHover {
-  background-color: rgba(60, 107, 110, 0.14) !important;
+  background-color: rgba(0, 113, 227, 0.09) !important;
 }
 
 .border-quant-line {
-  border-color: rgba(60, 107, 110, 0.28) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 .text-quant-text {
-  color: #3c6b6e !important;
+  color: #1d1d1f !important;
 }
 
 .text-quant-muted {
-  color: rgba(60, 107, 110, 0.76) !important;
+  color: #6e6e73 !important;
 }
 
 .text-quant-disabled {
-  color: rgba(60, 107, 110, 0.46) !important;
+  color: #aeaeb2 !important;
 }

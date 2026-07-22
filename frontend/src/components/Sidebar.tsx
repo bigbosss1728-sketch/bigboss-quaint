@@ -22,20 +22,20 @@ export function Sidebar({ collapsed, activeMenuId, activeSubmenu, onToggle, onMe
   return (
     <aside
       className={cn(
-        "hidden h-screen shrink-0 flex-col border-r border-quant-line bg-quant-bg px-2 py-3 quant-transition md:flex",
+        "hidden h-screen shrink-0 flex-col border-r border-quant-line bg-white/80 px-3 py-4 backdrop-blur-2xl quant-transition md:flex",
         collapsed ? "w-16" : "w-60",
       )}
     >
       <div className="mb-4 flex h-8 items-center justify-between">
         <div className={cn("overflow-hidden whitespace-nowrap text-sm font-semibold tracking-wide text-quant-text", collapsed && "w-0")}>
-          QUANT OS
+          Quant Studio
         </div>
         <Button variant="ghost" className="h-8 w-8 px-0" onClick={onToggle} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 rounded-quant border border-quant-line bg-quant-glass p-1">
+      <nav className="flex flex-1 flex-col gap-1 rounded-quant border border-quant-line bg-quant-glass p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const active = activeMenuId === item.id;

@@ -7,13 +7,10 @@
 } from "lucide-react";
 import type {
   ChartBar,
-  IndicatorPanel,
   MarketSnapshot,
   MenuItem,
   OrderBookLevel,
   PositionOrder,
-  StrategyParams,
-  SystemLog,
 } from "../types/quant";
 
 export const menuItems: MenuItem[] = [
@@ -48,12 +45,6 @@ export const chartBars: ChartBar[] = Array.from({ length: 90 }, (_, index) => {
   };
 });
 
-export const initialIndicators: IndicatorPanel[] = [
-  { id: "macd", kind: "MACD", title: "MACD 动量", value: "0.42 / 0.31", change: 0.18 },
-  { id: "rsi", kind: "RSI", title: "RSI 强弱", value: "58.6", change: 0.07 },
-  { id: "vol", kind: "成交量", title: "成交量", value: "24.8M", change: -0.04 },
-];
-
 export const marketSnapshot: MarketSnapshot = {
   symbol: "IF2409",
   price: 3568.42,
@@ -81,21 +72,5 @@ export const positions: PositionOrder[] = [
   { id: "P-1025", status: "未平仓", symbol: "000001.SZ", pnl: -620, size: 1800, entryPrice: 10.72 },
   { id: "P-1019", status: "已平仓", symbol: "510300.SH", pnl: 2180, size: 5000, entryPrice: 3.64 },
 ];
-
-export const defaultStrategyParams: StrategyParams = {
-  template: "动量突破",
-  initialCapital: 1000000,
-  riskRatio: 12,
-  stopLoss: 4,
-  slippage: 0.03,
-};
-
-export const logs: SystemLog[] = [
-  { id: "L1", level: "signal", time: "09:45:12", message: "IF2409 触发 15min 多头确认" },
-  { id: "L2", level: "trade", time: "10:02:28", message: "策略模板加载完成：动量突破" },
-  { id: "L3", level: "risk", time: "10:18:04", message: "单标的风险敞口接近阈值 12%" },
-  { id: "L4", level: "signal", time: "11:03:36", message: "RSI 回落至中性区间，降低追单权重" },
-];
-
 
 

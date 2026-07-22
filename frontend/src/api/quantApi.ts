@@ -15,6 +15,17 @@ export type TaskRun = {
   duration_ms: number | null;
 };
 
+export type StockBar = {
+  ts_code: string;
+  trade_date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  vol: number;
+  amount: number;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, init);
   if (!response.ok) {
@@ -25,6 +36,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const quantApi = {
+  getStockBars(tsCode: string, limit = 240, signal?: AbortSignal) {
+    const params = new URLSearchParams({ limit: String(limit), refresh: "true" });
+    return request<StockBar[]>(`/api/stocks/${encodeURIComponent(tsCode)}/bars?${params}`, { signal });
+  },
+
   createDataTask(kind: DataTaskKind, signal?: AbortSignal) {
     return request<{ id: string; status: "queued" }>(`/api/tasks/data/${kind}`, {
       method: "POST",

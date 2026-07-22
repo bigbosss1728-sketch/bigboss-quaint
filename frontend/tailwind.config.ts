@@ -6,24 +6,24 @@ const config: Config = {
     extend: {
       colors: {
         quant: {
-          bg: "#F2D398",
-          glass: "rgba(242,211,152,0.58)",
-          glassHover: "rgba(60,107,110,0.14)",
-          line: "rgba(60,107,110,0.28)",
-          grid: "rgba(60,107,110,0.16)",
-          up: "#3C6B6E",
-          down: "#C0553A",
-          text: "#3C6B6E",
-          muted: "rgba(60,107,110,0.76)",
-          disabled: "rgba(60,107,110,0.46)",
+          bg: "#F5F5F7",
+          glass: "rgba(255,255,255,0.82)",
+          glassHover: "rgba(0,113,227,0.09)",
+          line: "rgba(0,0,0,0.08)",
+          grid: "rgba(0,0,0,0.045)",
+          up: "#248A3D",
+          down: "#D70015",
+          text: "#1D1D1F",
+          muted: "#6E6E73",
+          disabled: "#AEAEB2",
         },
       },
       borderRadius: {
-        quant: "8px",
+        quant: "18px",
       },
       fontFamily: {
-        sans: ['"Inter"', "ui-sans-serif", "system-ui", "sans-serif"],
-        mono: ['"JetBrains Mono"', '"SFMono-Regular"', "Consolas", "monospace"],
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Helvetica Neue"', "sans-serif"],
+        mono: ['"SFMono-Regular"', '"SF Mono"', "Menlo", "monospace"],
       },
       transitionDuration: {
         quant: "280ms",

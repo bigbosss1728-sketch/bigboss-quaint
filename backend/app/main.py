@@ -164,7 +164,35 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         start_date: str | None = Query(default=None, pattern=r"^\d{8}$"),
         end_date: str | None = Query(default=None, pattern=r"^\d{8}$"),
         limit: int = Query(default=500, ge=1, le=5000),
+        refresh: bool = Query(default=False),
     ) -> list[StockBarResponse]:
+        if refresh:
+            try:
+                live_bars = TushareClient().fetch_recent_bars(
+                    ts_code=ts_code,
+                    end_date=end_date or date.today().strftime("%Y%m%d"),
+                    limit=limit,
+                )
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Tushare market data request failed: {exc}",
+                ) from exc
+            return [
+                StockBarResponse(
+                    ts_code=bar.ts_code,
+                    trade_date=bar.trade_date,
+                    open=bar.open,
+                    high=bar.high,
+                    low=bar.low,
+                    close=bar.close,
+                    vol=bar.vol,
+                    amount=0.0,
+                )
+                for bar in live_bars
+                if start_date is None or bar.trade_date >= start_date
+            ]
+
         frame = market_store.read_dataset("daily", start_date, end_date)
         if frame.empty:
             return []
