@@ -4,13 +4,15 @@ import {
   CandlestickSeries,
   ColorType,
   HistogramSeries,
+  LineSeries,
   createChart,
   type CandlestickData,
   type HistogramData,
+  type LineData,
   type IChartApi,
   type Time,
 } from "lightweight-charts";
-import type { ChartBar, Timeframe } from "../types/quant";
+import type { ChartBar, IndicatorKind, Timeframe } from "../types/quant";
 
 type DrawingLine = {
   id: string;
@@ -25,6 +27,7 @@ type SymbolOption = {
 
 type LightweightChartProps = {
   bars: ChartBar[];
+  indicators: IndicatorKind[];
   timeframe: Timeframe;
   symbolName: string;
   symbolCode: string;
@@ -38,6 +41,7 @@ type LightweightChartProps = {
 
 export function LightweightChart({
   bars,
+  indicators,
   timeframe,
   symbolName,
   symbolCode,
@@ -78,44 +82,74 @@ export function LightweightChart({
       autoSize: true,
       layout: {
         attributionLogo: false,
-        background: { type: ColorType.Solid, color: "#F2D398" },
-        textColor: "#3C6B6E",
-        fontFamily: "JetBrains Mono, Consolas, monospace",
+        background: { type: ColorType.Solid, color: "#FFFFFF" },
+        textColor: "#6E6E73",
+        fontFamily: "-apple-system, BlinkMacSystemFont, SF Pro Display, sans-serif",
       },
       grid: {
-        vertLines: { color: "rgba(60,107,110,0.16)" },
-        horzLines: { color: "rgba(60,107,110,0.16)" },
+        vertLines: { color: "rgba(0,0,0,0.045)" },
+        horzLines: { color: "rgba(0,0,0,0.045)" },
       },
       rightPriceScale: {
-        borderColor: "rgba(60,107,110,0.28)",
+        borderColor: "rgba(0,0,0,0.08)",
       },
       timeScale: {
-        borderColor: "rgba(60,107,110,0.28)",
+        borderColor: "rgba(0,0,0,0.08)",
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        rightOffset: 0,
+        lockVisibleTimeRangeOnResize: true,
       },
       crosshair: {
-        vertLine: { color: "rgba(60,107,110,0.24)" },
-        horzLine: { color: "rgba(60,107,110,0.24)" },
+        vertLine: { color: "rgba(0,113,227,0.3)" },
+        horzLine: { color: "rgba(0,113,227,0.3)" },
       },
     });
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#3C6B6E",
-      downColor: "#C0553A",
-      wickUpColor: "#3C6B6E",
-      wickDownColor: "#C0553A",
+      upColor: "#34C759",
+      downColor: "#FF3B30",
+      wickUpColor: "#34C759",
+      wickDownColor: "#FF3B30",
       borderVisible: false,
     });
     candleSeries.setData(candleData);
 
 
-    const volumeData: HistogramData[] = bars.map((bar) => ({
-      time: bar.time as Time,
-      value: bar.volume,
-      color: bar.close >= bar.open ? "rgba(60,107,110,0.38)" : "rgba(192,85,58,0.38)",
-    }));
-    chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "" }).setData(volumeData);
+    if (indicators.includes("成交量")) {
+      const volumeData: HistogramData[] = bars.map((bar) => ({
+        time: bar.time as Time,
+        value: bar.volume,
+        color: bar.close >= bar.open ? "rgba(52,199,89,0.28)" : "rgba(255,59,48,0.28)",
+      }));
+      chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "volume" }).setData(volumeData);
+    }
 
-    chart.timeScale().fitContent();
+    if (indicators.includes("均线")) {
+      chart.addSeries(LineSeries, lineOptions("#0071E3")).setData(movingAverage(bars, 20));
+    }
+
+    if (indicators.includes("布林带")) {
+      const bands = bollingerBands(bars, 20);
+      chart.addSeries(LineSeries, lineOptions("#AF52DE")).setData(bands.upper);
+      chart.addSeries(LineSeries, lineOptions("#AF52DE")).setData(bands.lower);
+    }
+
+    if (indicators.includes("MACD")) {
+      chart.addSeries(LineSeries, lineOptions("#FF9500", "macd")).setData(macdLine(bars));
+    }
+
+    if (indicators.includes("RSI")) {
+      chart.addSeries(LineSeries, lineOptions("#5856D6", "rsi")).setData(rsiLine(bars, 14));
+    }
+
+    if (bars.length > 0) {
+      const lastIndex = bars.length - 1;
+      chart.timeScale().setVisibleLogicalRange({
+        from: Math.max(0, bars.length - 20),
+        to: lastIndex,
+      });
+    }
     chartRef.current = chart;
 
     const resizeObserver = new ResizeObserver(([entry]) => {
@@ -138,7 +172,7 @@ export function LightweightChart({
       chart.remove();
       chartRef.current = null;
     };
-  }, [bars, candleData, timeframe]);
+  }, [bars, candleData, indicators, timeframe]);
 
   const applySymbolQuery = () => {
     const query = symbolQuery.trim().toLowerCase();
@@ -184,10 +218,21 @@ export function LightweightChart({
 
     const center = (range.from + range.to) / 2;
     const width = range.to - range.from;
-    const nextWidth = direction === "in" ? width * 0.72 : width * 1.28;
+    const nextWidth = Math.min(Math.max(4, direction === "in" ? width * 0.72 : width * 1.28), Math.max(4, bars.length - 1));
+    let from = center - nextWidth / 2;
+    let to = center + nextWidth / 2;
+    if (from < 0) {
+      to -= from;
+      from = 0;
+    }
+    const lastIndex = Math.max(0, bars.length - 1);
+    if (to > lastIndex) {
+      from -= to - lastIndex;
+      to = lastIndex;
+    }
     timeScale.setVisibleLogicalRange({
-      from: center - nextWidth / 2,
-      to: center + nextWidth / 2,
+      from: Math.max(0, from),
+      to,
     });
   };
 
@@ -267,6 +312,62 @@ export function LightweightChart({
   );
 }
 
+function lineOptions(color: string, priceScaleId?: string) {
+  return {
+    color,
+    lineWidth: 2 as const,
+    priceScaleId,
+    priceLineVisible: false,
+    lastValueVisible: false,
+  };
+}
 
+function movingAverage(bars: ChartBar[], period: number): LineData[] {
+  return bars.flatMap((bar, index) => {
+    if (index < period - 1) return [];
+    const values = bars.slice(index - period + 1, index + 1);
+    return [{ time: bar.time as Time, value: values.reduce((sum, item) => sum + item.close, 0) / period }];
+  });
+}
 
+function bollingerBands(bars: ChartBar[], period: number): { upper: LineData[]; lower: LineData[] } {
+  const upper: LineData[] = [];
+  const lower: LineData[] = [];
+  bars.forEach((bar, index) => {
+    if (index < period - 1) return;
+    const values = bars.slice(index - period + 1, index + 1).map((item) => item.close);
+    const average = values.reduce((sum, value) => sum + value, 0) / period;
+    const deviation = Math.sqrt(values.reduce((sum, value) => sum + (value - average) ** 2, 0) / period);
+    upper.push({ time: bar.time as Time, value: average + 2 * deviation });
+    lower.push({ time: bar.time as Time, value: average - 2 * deviation });
+  });
+  return { upper, lower };
+}
+
+function emaValues(values: number[], period: number): number[] {
+  const factor = 2 / (period + 1);
+  return values.reduce<number[]>((items, value, index) => {
+    items.push(index === 0 ? value : value * factor + items[index - 1] * (1 - factor));
+    return items;
+  }, []);
+}
+
+function macdLine(bars: ChartBar[]): LineData[] {
+  const closes = bars.map((bar) => bar.close);
+  const fast = emaValues(closes, 12);
+  const slow = emaValues(closes, 26);
+  return bars.map((bar, index) => ({ time: bar.time as Time, value: fast[index] - slow[index] }));
+}
+
+function rsiLine(bars: ChartBar[], period: number): LineData[] {
+  return bars.flatMap((bar, index) => {
+    if (index < period) return [];
+    const window = bars.slice(index - period, index + 1).map((item) => item.close);
+    const changes = window.slice(1).map((value, offset) => value - window[offset]);
+    const gain = changes.reduce((sum, value) => sum + Math.max(0, value), 0) / period;
+    const loss = changes.reduce((sum, value) => sum + Math.max(0, -value), 0) / period;
+    const value = loss === 0 ? 100 : 100 - 100 / (1 + gain / loss);
+    return [{ time: bar.time as Time, value }];
+  });
+}
 

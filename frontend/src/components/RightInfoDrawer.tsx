@@ -1,17 +1,29 @@
 ﻿import { ChevronLeft, ChevronRight } from "lucide-react";
-import { marketSnapshot } from "../data/mockQuant";
+import type { LiveMarketSnapshot } from "./ChartWorkspace";
 import { cn } from "../lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 type RightInfoDrawerProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  marketSnapshot: LiveMarketSnapshot | null;
 };
 
-const bullishIndicators = ["MA5 上穿 MA20", "MACD 柱体转正", "收盘价站上布林中轨"];
-const bearishIndicators = ["RSI 接近 70 高位区", "上方压力位 3582.90", "放量后回落风险仍在"];
-
-export function RightInfoDrawer({ open, onOpenChange }: RightInfoDrawerProps) {
+export function RightInfoDrawer({ open, onOpenChange, marketSnapshot }: RightInfoDrawerProps) {
+  const bullishIndicators = marketSnapshot
+    ? [
+        `最新涨跌幅 ${marketSnapshot.changePct >= 0 ? "+" : ""}${marketSnapshot.changePct.toFixed(2)}%`,
+        `当日高点 ${marketSnapshot.high.toFixed(2)}`,
+        marketSnapshot.price >= (marketSnapshot.high + marketSnapshot.low) / 2 ? "收盘价位于当日区间上半部" : "收盘价尚未站上当日区间中位",
+      ]
+    : ["正在等待 Tushare 行情"];
+  const bearishIndicators = marketSnapshot
+    ? [
+        `当日低点 ${marketSnapshot.low.toFixed(2)}`,
+        `距当日高点 ${(((marketSnapshot.high - marketSnapshot.price) / marketSnapshot.high) * 100).toFixed(2)}%`,
+        marketSnapshot.changePct < 0 ? "最新交易日收跌" : "最新交易日未收跌",
+      ]
+    : ["暂无真实行情可分析"];
   return (
     <>
       {open ? <div className="fixed inset-0 z-30 bg-transparent" onClick={() => onOpenChange(false)} /> : null}
@@ -33,9 +45,10 @@ export function RightInfoDrawer({ open, onOpenChange }: RightInfoDrawerProps) {
               <CardTitle>标的基础行情</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-2 text-xs">
-              <Info label="当前价格" value={marketSnapshot.price.toFixed(2)} positive />
-              <Info label="高点" value={marketSnapshot.high.toFixed(2)} />
-              <Info label="低点" value={marketSnapshot.low.toFixed(2)} negative />
+              <Info label="当前价格" value={marketSnapshot ? marketSnapshot.price.toFixed(2) : "--"} positive />
+              <Info label="当日高点" value={marketSnapshot ? marketSnapshot.high.toFixed(2) : "--"} />
+              <Info label="当日低点" value={marketSnapshot ? marketSnapshot.low.toFixed(2) : "--"} negative />
+              <Info label="涨跌幅" value={marketSnapshot ? `${marketSnapshot.changePct >= 0 ? "+" : ""}${marketSnapshot.changePct.toFixed(2)}%` : "--"} positive={Boolean(marketSnapshot && marketSnapshot.changePct >= 0)} negative={Boolean(marketSnapshot && marketSnapshot.changePct < 0)} />
             </CardContent>
           </Card>
 
@@ -80,4 +93,3 @@ function Info({ label, value, positive, negative }: { label: string; value: stri
     </div>
   );
 }
-

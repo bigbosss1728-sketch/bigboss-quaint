@@ -1,13 +1,9 @@
-﻿import { Camera, Download, Plus, Wand2 } from "lucide-react";
-import type { Timeframe } from "../types/quant";
+﻿import { Camera, Download, Plus } from "lucide-react";
 import { Button } from "./ui/button";
 import { Dialog } from "./ui/dialog";
 
 type ChartToolbarProps = {
-  timeframe: Timeframe;
-  timeframes: Timeframe[];
   indicatorDialogOpen: boolean;
-  onTimeframeChange: (timeframe: Timeframe) => void;
   onOpenIndicatorDialog: () => void;
   onCloseIndicatorDialog: () => void;
   onAddIndicator: (kind: string) => void;
@@ -16,10 +12,7 @@ type ChartToolbarProps = {
 };
 
 export function ChartToolbar({
-  timeframe,
-  timeframes,
   indicatorDialogOpen,
-  onTimeframeChange,
   onOpenIndicatorDialog,
   onCloseIndicatorDialog,
   onAddIndicator,
@@ -27,20 +20,12 @@ export function ChartToolbar({
   onScreenshot,
 }: ChartToolbarProps) {
   return (
-    <div className="flex min-h-12 flex-wrap items-center gap-1 border-t border-quant-line bg-quant-glass px-3 py-2">
-      {timeframes.map((item) => (
-        <Button key={item} variant={item === timeframe ? "active" : "ghost"} onClick={() => onTimeframeChange(item)}>
-          {item}
-        </Button>
-      ))}
+    <div className="flex min-h-14 flex-wrap items-center gap-1.5 border-t border-quant-line bg-quant-glass px-4 py-2.5">
+      <span className="mr-1 rounded-full bg-quant-glassHover px-3 py-1.5 text-xs font-medium text-quant-text">日线</span>
       <div className="mx-1 h-5 w-px bg-quant-line" />
       <Button variant="ghost" onClick={onOpenIndicatorDialog}>
         <Plus className="h-3.5 w-3.5" />
         添加指标
-      </Button>
-      <Button variant="ghost">
-        <Wand2 className="h-3.5 w-3.5" />
-        策略模板
       </Button>
       <Button variant="ghost" onClick={onScreenshot}>
         <Camera className="h-3.5 w-3.5" />

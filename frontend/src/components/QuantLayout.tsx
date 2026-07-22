@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { menuItems } from "../data/mockQuant";
-import { ChartWorkspace } from "./ChartWorkspace";
+import { ChartWorkspace, type LiveMarketSnapshot } from "./ChartWorkspace";
 import { MenuPage } from "./MenuPage";
 import { PortfolioAssets } from "./PortfolioAssets";
 import { QuantTransition } from "./QuantTransition";
@@ -14,6 +14,7 @@ export function QuantLayout() {
   const [activeView, setActiveView] = useState<MainView>("chart");
   const [activeMenuId, setActiveMenuId] = useState("kline");
   const [activeSubmenu, setActiveSubmenu] = useState("主图分析");
+  const [marketSnapshot, setMarketSnapshot] = useState<LiveMarketSnapshot | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 900px)");
@@ -46,7 +47,7 @@ export function QuantLayout() {
     ) : activeView === "qlib" ? (
       <QlibWorkspace submenu={activeSubmenu} />
     ) : activeView === "chart" ? (
-      <ChartWorkspace />
+      <ChartWorkspace onMarketDataChange={setMarketSnapshot} />
     ) : (
       <MenuPage menuLabel={activeMenu.label} submenuLabel={activeSubmenu} />
     );
@@ -68,7 +69,7 @@ export function QuantLayout() {
       <div key={`${activeMenuId}-${activeSubmenu}`} className="flex min-h-0 min-w-0 flex-1 view-enter">
         {page}
       </div>
-      {activeMenuId === "kline" ? <RightInfoDrawer open={drawerOpen} onOpenChange={setDrawerOpen} /> : null}
+      {activeMenuId === "kline" ? <RightInfoDrawer open={drawerOpen} onOpenChange={setDrawerOpen} marketSnapshot={marketSnapshot} /> : null}
     </QuantTransition>
   );
 }

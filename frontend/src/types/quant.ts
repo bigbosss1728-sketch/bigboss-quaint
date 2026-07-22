@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 
-export type Timeframe = "分时" | "1min" | "5min" | "15min" | "日线";
+export type Timeframe = "日线";
 
 export type MenuItem = {
   id: string;
@@ -20,14 +20,6 @@ export type ChartBar = {
 
 export type IndicatorKind = "MACD" | "RSI" | "布林带" | "成交量" | "均线";
 
-export type IndicatorPanel = {
-  id: string;
-  kind: IndicatorKind;
-  title: string;
-  value: string;
-  change: number;
-};
-
 export type OrderBookLevel = {
   side: "bid" | "ask";
   level: number;
@@ -44,14 +36,6 @@ export type PositionOrder = {
   entryPrice: number;
 };
 
-export type StrategyParams = {
-  template: string;
-  initialCapital: number;
-  riskRatio: number;
-  stopLoss: number;
-  slippage: number;
-};
-
 export type MarketSnapshot = {
   symbol: string;
   price: number;
@@ -59,11 +43,4 @@ export type MarketSnapshot = {
   floatMarketCap: string;
   high: number;
   low: number;
-};
-
-export type SystemLog = {
-  id: string;
-  level: "signal" | "trade" | "risk";
-  time: string;
-  message: string;
 };

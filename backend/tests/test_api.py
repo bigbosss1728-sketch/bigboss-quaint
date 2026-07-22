@@ -183,3 +183,46 @@ def test_stock_bars_are_ascending_and_unique_by_trade_date(tmp_path):
 
     assert response.status_code == 200
     assert [bar["trade_date"] for bar in response.json()] == ["20260709", "20260710"]
+
+
+def test_stock_bars_can_refresh_from_tushare(tmp_path, monkeypatch):
+    class StubTushareClient:
+        def fetch_recent_bars(self, ts_code, end_date, limit):
+            from backend.app.domain import DailyBar
+
+            return [
+                DailyBar(
+                    ts_code=ts_code,
+                    name="平安银行",
+                    trade_date="20260710",
+                    open=10,
+                    high=11,
+                    low=9,
+                    close=10.5,
+                    pre_close=10,
+                    pct_chg=5,
+                    vol=123,
+                    amount=456,
+                )
+            ]
+
+    monkeypatch.setattr(main_module, "TushareClient", StubTushareClient)
+    with TestClient(create_app(data_dir=tmp_path)) as client:
+        response = client.get(
+            "/api/stocks/000001.SZ/bars",
+            params={"refresh": "true", "limit": 30},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "ts_code": "000001.SZ",
+            "trade_date": "20260710",
+            "open": 10.0,
+            "high": 11.0,
+            "low": 9.0,
+            "close": 10.5,
+            "vol": 123.0,
+            "amount": 0.0,
+        }
+    ]
