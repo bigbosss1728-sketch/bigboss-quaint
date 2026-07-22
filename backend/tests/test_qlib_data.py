@@ -2,8 +2,9 @@ import json
 
 import pandas as pd
 import pytest
-import qlib
-from qlib.data import D
+
+qlib = pytest.importorskip("qlib")
+D = pytest.importorskip("qlib.data").D
 
 from backend.app import qlib_data
 from backend.app.qlib_data import build_qlib_provider, prepare_qlib_source
